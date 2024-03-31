@@ -18,7 +18,7 @@ call_evm_demo = "_"
 
 [dependencies.AptosFramework]
 git = 'https://github.com/shaokun11/move-me2'
-rev = 'acc184f9af236ac318b8235ea61fc6669a8a3b79'
+rev = '8140913a3610bf54d16b1c43ec6f44380e3b1c13'
 subdir = 'aptos-move/framework/aptos-framework'
 #
 #[dependencies.AptosStdlib]

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-contract MovementERC20 {
+contract MovementCoin {
     address private _delegate = 0x0000000000000000000000000000000000000101;
 
     /**

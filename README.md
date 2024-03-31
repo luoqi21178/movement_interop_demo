@@ -65,6 +65,17 @@ The application uses several environment variables, which should be set in a `.e
 2. Call the setNumber function of the NumberRegistry contract using the Move wallet or using the Move Contract(you must compile the and publish the move package as the demo contract in move-contract).
 3. Check whether the number is set successfully.
 
+## Steps for `mooncoin.js`
+1. Compile the and publish the move package(moon_coin.move) as the demo contract in move-contract.
+2. Get the evm MoonCoin contract address from the MOVE MoonCoin contract using the Move wallet.
+3. Call the mint function of the MoonCoin contract using the Move wallet.(ensure that the MoonCoin contract is deployed in the Move wallet, and you have enough balance to pay for the transaction fee) 
+4. Call the transferFromMoveToEVM function of the Move MoonCoin contract using the Move wallet.
+5. Check whether the mint and transfer functions are executed successfully.
+6. Call the balanceOf function of the MoonCoin contract using the Move wallet to check the balance of the account.
+7. Call the transferFromEVMToMove function of the EVM MoonCoin contract using the EVM wallet.
+8. Check whether the transfer function is executed successfully.
+9. Call the balanceOf function of the Move MoonCoin contract and Evm MoonCoin contract using the Move wallet to check the balance of the account.
+
 ## Note
 
 This is a basic overview of the project. For more detailed information, please refer to the comments in the source code.

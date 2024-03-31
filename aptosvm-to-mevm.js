@@ -15,19 +15,19 @@ const web3Provider = process.env.EVM_RPC_ENDPOINT
 const provider = getDefaultProvider(web3Provider)
 const wallet = new ethers.Wallet(process.env.ETHEREUM_PRIVATE_KEY, provider);
 const account = wallet.connect(provider);
-const data = require("./NumberRegistry.json")
+const data = require("./MovementCoin.json")
 const moveModule = "./move-contract";
 
-async function deployNumberRegistry() {
+async function deployMovementCoin() {
 	const factory = new ContractFactory(data.abi, data.bytecode, account);
 	const contract = await factory.deploy();
 	console.log(`NumberRegistry deployed at ${contract.address}`)
-
+	BCS.bcsSerializeStr()
 	return contract
 }
 
 async function deployMovePackage() {
-	const moduleData = fs.readFileSync(path.join(moveModule, "build", "CallEVMDemo", "bytecode_modules", "demo.mv"));
+	const moduleData = fs.readFileSync(path.join(moveModule, "build", "CallEVMDemo", "bytecode_modules", "hello_world.mv"));
 	const packageMetadata = fs.readFileSync(path.join(moveModule, "build", "CallEVMDemo", "package-metadata.bcs"));
 	let txnHash = await client.publishPackage(owner, new HexString(packageMetadata.toString("hex")).toUint8Array(), [
 		new TxnBuilderTypes.Module(new HexString(moduleData.toString("hex")).toUint8Array()),
@@ -44,16 +44,6 @@ async function submitTx(rawTxn) {
 	return pendingTxn.hash;
 }
 
-// Function to get the nonce of an account
-async function getNonce(addr) {
-	try {
-		let resource = await client.getAccountResource("0x" + addr.toString().slice(26), `0x1::evm::Account`);
-		return parseInt(resource.data.nonce);
-	} catch (e) {
-		// return 0 if account not created
-		return 0;
-	}
-}
 
 async function setNumberByMoveContract(contract) {
 	let interface = new ethers.utils.Interface(data.abi);
@@ -78,14 +68,11 @@ async function setNumberByWallet(contract) {
 	// 1. Encodes the EVM function
 	let calldata = interface.encodeFunctionData("setNumber", [100]);
 
-	// 2. Gets the AptosVM Account EVM nonce
-	let nonce = await getNonce(owner.address())
-
-	// 3. Generates the AptosVM transaction that interacts with the EVM contract
+	// 2. Generates the AptosVM transaction that interacts with the EVM contract
 	let txn = await client.generateTransaction(owner.address(), {
 		function: `0x1::evm::send_move_tx_to_evm`,
 		type_arguments: [],
-		arguments: [nonce, new HexString(contract.address).toUint8Array(), BCS.bcsSerializeU256(0), new HexString(calldata).toUint8Array(), 1],
+		arguments: [new HexString(contract.address).toUint8Array(), new HexString(calldata).toUint8Array(), 1],
 	});
 
 	console.log(`setting number tx ${await submitTx(txn)}`);
