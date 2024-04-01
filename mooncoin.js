@@ -90,15 +90,16 @@ function toBuffer(hex) {
 
 // Function to transfer moon coins from move to evm
 async function transferFromMoveToEVM() {
-	let res = await coinClient.transfer(owner,  evm_wallet.address, 5000000, { coinType: asset_address });
-	console.log(`transfer mooncoin from move to evm tx ${res}`);
+	let res = await coinClient.transfer(owner,  evm_wallet.address, 20000000, { coinType: asset_address });
+	await client.waitForTransaction(res)
+	console.log(`transfer 20 mooncoin from move to evm tx ${res}`);
 }
 
 // Function to transfer moon coins from evm to move
 async function transferFromEVMToMove() {
 	let from = owner.address().hexString;
-	let res = await evmContract.transferToMove(from, 1000000);
-	console.log(`transfer mooncoin from evm to move tx ${res}`);
+	let res = await evmContract.transferToMove(from, 10000000);
+	console.log(`transfer 10 mooncoin from evm to move tx ${res.hash}`);
 }
 
 // Function to deposit gas to the evm wallet
