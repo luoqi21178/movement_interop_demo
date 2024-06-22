@@ -1,0 +1,18 @@
+token_format: access_token
+workload_identity_provider: projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider
+service_account: my-service-account@my-project.iam.gserviceaccount.com
+create_credentials_file: true
+export_environment_variables: true
+cleanup_credentials: true
+access_token_lifetime: 3600s
+access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+retries: 0
+id_token_include_email: false
+env:
+PROJECT_ID: 
+GAR_LOCATION: us-central1
+GKE_CLUSTER: cluster-1
+GKE_ZONE: us-central1-c
+DEPLOYMENT_NAME: gke-test
+REPOSITORY: samples
+IMAGE: static-site
