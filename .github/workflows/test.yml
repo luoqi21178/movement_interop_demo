@@ -1,0 +1,277 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: 'Test'
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'release/**/*'
+  pull_request:
+    branches:
+      - 'main'
+      - 'release/**/*'
+  workflow_dispatch:
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: 'bash'
+
+jobs:
+  unit:
+    name: 'unit'
+    runs-on: 'ubuntu-latest'
+
+    steps:
+      - uses: 'actions/checkout@v4'
+
+      - uses: 'actions/setup-node@v4'
+        with:
+          node-version: '20.x'
+
+      - name: 'npm build'
+        run: 'npm ci && npm run build'
+
+      - name: 'npm lint'
+        run: 'npm run lint'
+
+      - name: 'npm test'
+        run: 'npm run test'
+
+
+  #
+  # Direct Workload Identity Federation
+  #
+  direct_workload_identity_federation:
+    if: ${{ github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name }}
+    name: 'direct_workload_identity_federation'
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - 'ubuntu-latest'
+          - 'windows-latest'
+          - 'macos-latest'
+
+    permissions:
+      id-token: 'write'
+
+    steps:
+      - uses: 'actions/checkout@v4'
+
+      - uses: 'actions/setup-node@v4'
+        with:
+          node-version: '20.x'
+
+      - name: 'npm build'
+        run: 'npm ci && npm run build'
+
+      - id: 'auth-default'
+        name: 'auth-default'
+        uses: './'
+        with:
+          project_id: '${{ vars.PROJECT_ID }}'
+          workload_identity_provider: '${{ vars.WIF_PROVIDER_NAME }}'
+
+      - id: 'oauth-federated-token'
+        name: 'oauth-federated-token'
+        run: |-
+          curl https://secretmanager.googleapis.com/v1/projects/${{ steps.auth-default.outputs.project_id }}/secrets/${{ vars.SECRET_NAME }}/versions/latest:access \
+            --silent \
+            --show-error \
+            --fail \
+            --header "Authorization: Bearer ${{ steps.auth-default.outputs.auth_token }}"
+
+      - uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 363.0.0'
+
+      - name: 'gcloud'
+        run: |-
+          gcloud secrets versions access "latest" --secret "${{ vars.SECRET_NAME }}"
+
+
+  #
+  # Workload Identity Federation through a Service Account
+  #
+  workload_identity_federation_through_service_account:
+    if: ${{ github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name }}
+    name: 'workload_identity_federation_through_service_account'
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - 'ubuntu-latest'
+          - 'windows-latest'
+          - 'macos-latest'
+
+    permissions:
+      id-token: 'write'
+
+    steps:
+      - uses: 'actions/checkout@v4'
+
+      - uses: 'actions/setup-node@v4'
+        with:
+          node-version: '20.x'
+
+      - name: 'npm build'
+        run: 'npm ci && npm run build'
+
+      - id: 'auth-default'
+        name: 'auth-default'
+        uses: './'
+        with:
+          workload_identity_provider: '${{ vars.WIF_PROVIDER_NAME }}'
+          service_account: '${{ vars.SERVICE_ACCOUNT_EMAIL }}'
+
+      - uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 363.0.0'
+
+      - name: 'gcloud'
+        run: |-
+          gcloud secrets versions access "latest" --secret "${{ vars.SECRET_NAME }}"
+
+      - id: 'auth-access-token'
+        name: 'auth-access-token'
+        uses: './'
+        with:
+          workload_identity_provider: '${{ vars.WIF_PROVIDER_NAME }}'
+          service_account: '${{ vars.SERVICE_ACCOUNT_EMAIL }}'
+          token_format: 'access_token'
+
+      - id: 'oauth-token'
+        name: 'oauth-token'
+        run: |-
+          curl https://secretmanager.googleapis.com/v1/projects/${{ steps.auth-access-token.outputs.project_id }}/secrets/${{ vars.SECRET_NAME }}/versions/latest:access \
+            --silent \
+            --show-error \
+            --fail \
+            --header "Authorization: Bearer ${{ steps.auth-access-token.outputs.access_token }}"
+
+      - id: 'id-token'
+        name: 'id-token'
+        uses: './'
+        with:
+          workload_identity_provider: '${{ vars.WIF_PROVIDER_NAME }}'
+          service_account: '${{ vars.SERVICE_ACCOUNT_EMAIL }}'
+          token_format: 'id_token'
+          id_token_audience: 'https://secretmanager.googleapis.com/'
+          id_token_include_email: true
+
+
+  #
+  # Service Account Key JSON
+  #
+  credentials_json:
+    if: ${{ github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name }}
+    name: 'credentials_json'
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - 'ubuntu-latest'
+          - 'windows-latest'
+          - 'macos-latest'
+
+    steps:
+      - uses: 'actions/checkout@v4'
+
+      - uses: 'actions/setup-node@v4'
+        with:
+          node-version: '20.x'
+
+      - name: 'npm build'
+        run: 'npm ci && npm run build'
+
+      - id: 'auth-default'
+        name: 'auth-default'
+        uses: './'
+        with:
+          credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY_JSON }}'
+
+      - uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 363.0.0'
+
+      - name: 'gcloud'
+        run: |-
+          gcloud secrets versions access "latest" --secret "${{ vars.SECRET_NAME }}"
+
+      - id: 'auth-access-token'
+        name: 'auth-access-token'
+        uses: './'
+        with:
+          credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY_JSON }}'
+          token_format: 'access_token'
+
+      - id: 'access-token'
+        name: 'access-token'
+        run: |-
+          curl https://secretmanager.googleapis.com/v1/projects/${{ steps.auth-access-token.outputs.project_id }}/secrets/${{ vars.SECRET_NAME }}/versions/latest:access \
+            --silent \
+            --show-error \
+            --fail \
+            --header "Authorization: Bearer ${{ steps.auth-access-token.outputs.access_token }}"
+
+      - id: 'auth-id-token'
+        name: 'auth-id-token'
+        uses: './'
+        with:
+          credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY_JSON }}'
+          token_format: 'id_token'
+          id_token_audience: 'https://secretmanager.googleapis.com/'
+          id_token_include_email: true
+
+  #
+  # This test ensures that the GOOGLE_APPLICATION_CREDENTIALS environment
+  # variable is shared with the container and that the path of the file is on
+  # the shared filesystem with the container and that the USER for the container
+  # has permissions to read the file.
+  #
+  docker:
+    if: ${{ github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name }}
+    name: 'docker'
+    runs-on: 'ubuntu-latest'
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: 'actions/checkout@v4'
+
+      - uses: 'actions/setup-node@v4'
+        with:
+          node-version: '20.x'
+
+      - name: 'npm build'
+        run: 'npm ci && npm run build'
+
+      - name: 'auth-default'
+        uses: './'
+        with:
+          credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY_JSON }}'
+
+      - name: 'docker'
+        uses: 'docker://alpine:3'
+        with:
+          entrypoint: '/bin/sh'
+          args: '-euc "test -n "${GOOGLE_APPLICATION_CREDENTIALS}" && test -r "${GOOGLE_APPLICATION_CREDENTIALS}"'
